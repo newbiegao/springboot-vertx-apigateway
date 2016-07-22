@@ -1,8 +1,5 @@
 package com.plateno.proxy.config;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
 import com.netflix.appinfo.ApplicationInfoManager;
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.appinfo.MyDataCenterInstanceConfig;
@@ -26,7 +23,7 @@ public class EurekaClientConfig {
 		DefaultEurekaClientConfig clientConfig = new DefaultEurekaClientConfig();
 		EurekaClient eurekaClient = new DiscoveryClient(applicationInfoManager, clientConfig);
 		
-		return eurekaClient ;
+		return eurekaClient ; 
 
 	}
 
