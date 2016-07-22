@@ -14,7 +14,7 @@ public class BaseFilter extends AbstractFilter {
 		
 		// System.out.println(event.request().uri());
 		
-		this.disableProxy(event);
+		// this.disableProxy(event);
 		
 	}
 
