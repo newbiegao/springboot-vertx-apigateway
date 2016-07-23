@@ -1,8 +1,5 @@
 package com.plateno.proxy.verticles ;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import javax.annotation.PostConstruct;
 
 import org.slf4j.Logger;
@@ -13,14 +10,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import com.netflix.appinfo.ApplicationInfoManager;
 import com.netflix.appinfo.InstanceInfo;
-import com.netflix.appinfo.InstanceInfo.InstanceStatus;
-import com.netflix.appinfo.MyDataCenterInstanceConfig;
-import com.netflix.appinfo.providers.EurekaConfigBasedInstanceInfoProvider;
-import com.netflix.discovery.DefaultEurekaClientConfig;
-import com.netflix.discovery.DiscoveryClient;
-import com.netflix.discovery.EurekaClient;
 import com.plateno.proxy.ProxApplicationConfig;
 import com.plateno.proxy.filters.FiltersProcesser;
 
@@ -31,7 +21,6 @@ import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.streams.Pump;
-import io.vertx.ext.web.Route;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 
@@ -46,9 +35,6 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 	
 	private static final Logger logger = LoggerFactory.getLogger(VertxProxyVerticle.class);
 	
-	private static ApplicationInfoManager applicationInfoManager ;
-	private static EurekaClient eurekaClient;
-	
 	@Autowired
 	public  FiltersProcesser filtersProcesser ;
 	
@@ -62,9 +48,6 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 	@PostConstruct
 	public void start() throws Exception {
 
-		// 初始化服务发现
-		eurekaClientInit();
-		
 		// httpclient 对象
 		HttpClientOptions hopt = new HttpClientOptions().setKeepAlive(true);
 		
@@ -139,17 +122,20 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 		String serviceName = context.request().getParam("serviceName") ;
 		if( StringUtils.isEmpty(serviceName) )
 		{
-			logger.error("serviceName isEmpty");
+			context.response().setStatusCode(404) ;
+			context.response().end("service isEmpty");
 			return info ;
 		}
 		
 		try
 		{
-			info = eurekaClient.getNextServerFromEureka(serviceName, false);
+			info = this.appConfig.getDiscoveryClient().getNextServerFromEureka(serviceName, false) ;
 		}
-		catch( Exception e )
+		catch( Exception exp )
 		{
-			logger.error("serviceName :" + serviceName + " is not validate ");
+			context.response().setStatusCode(404) ;
+			context.response().end("service:"+serviceName+" is not available");
+			logger.error("service :" + serviceName + " is not available" , exp);
 		}
 		
 		return info ;
@@ -158,27 +144,6 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 	private String proxyPath( String appName )
 	{
 		return "/" + appName + "/:serviceName/*" ;
-	}
-	
-	private void eurekaClientInit() {
-
-		// 构造eureka客户端
-		if( applicationInfoManager == null )
-		{
-			MyDataCenterInstanceConfig instanceConfig = new MyDataCenterInstanceConfig();
-			
-			InstanceInfo instanceInfo = new EurekaConfigBasedInstanceInfoProvider(instanceConfig).get();
-			
-			applicationInfoManager = new ApplicationInfoManager(instanceConfig, instanceInfo);
-		}
-		
-		if( eurekaClient == null )
-		{
-			DefaultEurekaClientConfig clientConfig = new DefaultEurekaClientConfig();
-			
-			eurekaClient = new DiscoveryClient(applicationInfoManager, clientConfig);
-		}
-		
 	}
 	
 
@@ -200,12 +165,7 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 		
 		InstanceInfo backServer = getRemoteService(requestHandler) ; 
 		
-		if( backServer == null )
-		{
-			requestHandler.response().setStatusCode(404) ;
-			requestHandler.response().end("service Not Found");
-			return ;
-		}
+		if( backServer == null ) return ;
 		
 		String path = getRemoteServicePath(requestHandler);
 		

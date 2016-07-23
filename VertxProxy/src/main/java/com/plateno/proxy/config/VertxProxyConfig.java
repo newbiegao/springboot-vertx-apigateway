@@ -3,13 +3,11 @@ package com.plateno.proxy.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-@Component
+//@Component
 @ConfigurationProperties(prefix="vertx.proxy")
 public class VertxProxyConfig {
 
-	public static final String INSTANCES = "instances" ;
-	public static final String PORT = "port" ;
-	public static final String PROXY_NAME = "proxyName" ;
+	private String configServiceId ;
 	
 	private Integer instances = 1 ;
 
@@ -29,6 +27,14 @@ public class VertxProxyConfig {
 
 	public void setInstances(Integer instances) {
 		this.instances = instances;
+	}
+
+	public String getConfigServiceId() {
+		return configServiceId;
+	}
+
+	public void setConfigServiceId(String configServiceId) {
+		this.configServiceId = configServiceId;
 	}
 	
 }
