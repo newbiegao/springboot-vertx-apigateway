@@ -80,8 +80,11 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 		Router proxyRouter = Router.router(vertx);
 		
 		// 所有请求前置处理
-		proxyRouter.route("/*").handler(this::preHandle) ;
-		
+		proxyRouter.route("/*").handler( requestHandler -> {
+			
+			filterHander(requestHandler,client);
+			
+		} ) ;
 		
 		// 服务路由请求
 		proxyRouter.route(proxyPath(appConfig.getAppName())).handler( requestHandler -> {
@@ -96,8 +99,6 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 			logger.error(" proxy inner error: " , exceptionHandler );
 
 		});
-		
-		
 
 		HttpServerOptions options = new HttpServerOptions();
 		options.setTcpKeepAlive(true);
@@ -180,22 +181,20 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 		
 	}
 	
-	private void preHandle(RoutingContext context )
+
+	private void filterHander( RoutingContext requestHandler , HttpClient client )
 	{
 		// 代理前置处理
-		filtersProcesser.process(context);
+		filtersProcesser.process(requestHandler , client );
 		
-		if( (boolean)context.get("enableProxy") )
+		if(FiltersProcesser.canProxy(requestHandler) )
 		{
-			context.next(); 
+			requestHandler.next(); 
 		}
-		else
-		{
-			context.response().end(" request invalidate ");
-		}
-		
+
 	}
 	
+
 	private void proxyHander(RoutingContext requestHandler , HttpClient client )
 	{
 		
