@@ -7,14 +7,22 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import com.plateno.proxy.ProxApplicationConfig;
 
 import io.vertx.core.http.HttpClient;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
 @Service
 public  class FiltersProcesser implements InitializingBean {
 
 	private List<AbstractFilter> filters = new ArrayList<AbstractFilter>();
+	
+	@Autowired
+	private ProxApplicationConfig proxyConfig ;
 	
 	@Autowired
 	private ApplicationContext ctx ;
@@ -25,9 +33,10 @@ public  class FiltersProcesser implements InitializingBean {
 		for( AbstractFilter filter : filters )
 		{
 			filter.handle(event , client);
+			if( !filter.continueFilter(event) ) break ;
+
 		}
 	}
-
 
 	@Override
 	public void afterPropertiesSet() throws Exception {
@@ -47,5 +56,5 @@ public  class FiltersProcesser implements InitializingBean {
 		if( event.get("enableProxy") == null ) return true ;
 		return (boolean) event.get("enableProxy");
 	}
-	
+
 }
