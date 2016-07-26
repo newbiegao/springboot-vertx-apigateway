@@ -24,7 +24,7 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 
 /**
- * VERYX 告诉API GATEWAY代理
+ * VERYX API GATEWAY代理
  * @author gaolk
  *
  */
