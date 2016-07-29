@@ -1,5 +1,9 @@
 package com.plateno.proxy.verticles ;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
 import javax.annotation.PostConstruct;
 
 import org.slf4j.Logger;
@@ -11,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import com.netflix.appinfo.InstanceInfo;
+import com.netflix.discovery.endpoint.EndpointUtils;
+import com.netflix.discovery.shared.Applications;
 import com.plateno.proxy.HttpUtilty;
 import com.plateno.proxy.ProxApplicationConfig;
 import com.plateno.proxy.filters.FiltersProcesser;
@@ -124,6 +130,7 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 	
 	private InstanceInfo getRemoteService( RoutingContext context )
 	{
+	
 		InstanceInfo info = null;
 		String serviceName = context.request().getParam("serviceName") ;
 		if( StringUtils.isEmpty(serviceName) )
@@ -135,7 +142,17 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 		
 		try
 		{
-			info = this.appConfig.getDiscoveryClient().getNextServerFromEureka(serviceName, false) ;
+			// 从上下文获取zone
+			String zone = FiltersProcesser.getZone(context) ;
+			
+			if ( StringUtils.isEmpty(zone))
+			{
+				info = getNextServerFromEureka(serviceName);
+			}
+			else
+			{
+				info = getNextServerFromEureka(serviceName , zone);
+			}
 		}
 		catch( Exception exp )
 		{
@@ -146,6 +163,86 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 		
 		return info ;
 	}
+	
+	/**
+	 * 获取指定zone的节点 +表示增加 不带+表示特指
+	 * @param virtualHostname
+	 * @param zone
+	 * @return
+	 */
+	private InstanceInfo getNextServerFromEureka(String virtualHostname , String zone ) {
+       
+		boolean isAdd = zone.charAt(0) == '+' ? true : false ;
+		
+		List<InstanceInfo> instanceInfoList = this.appConfig.getDiscoveryClient().getInstancesByVipAddress(virtualHostname, false);
+          
+		if (instanceInfoList == null || instanceInfoList.isEmpty()) {
+	            throw new RuntimeException("No matches for the virtual host name :" + virtualHostname);
+	    }
+		
+		// 根据zone过滤节点
+		List<InstanceInfo> newInstanceList = new  ArrayList<>();
+		
+		for( InstanceInfo info : instanceInfoList )
+		{
+			if( zone.equals(info.getMetadata().get("zone")) )
+			{
+				newInstanceList.add(info);
+				continue ;
+			}
+			
+			if( isAdd ) newInstanceList.add(info);
+		}
+		
+		if (newInstanceList == null || newInstanceList.isEmpty()) {
+            throw new RuntimeException("No matches for the virtual host name :" + virtualHostname + " zone : " + zone );
+		}
+        
+		// 负载均衡
+		Applications apps =  this.appConfig.getDiscoveryClient().getApplications() ;
+	
+        int index = (int) (apps.getNextIndex(virtualHostname.toUpperCase(Locale.ROOT),
+                false).incrementAndGet() % newInstanceList.size());
+        
+        return newInstanceList.get(index);
+    }
+	
+	/**
+	 * 获取所有未指定zone的节点
+	 * @param virtualHostname
+	 * @return
+	 */
+	private InstanceInfo getNextServerFromEureka(String virtualHostname ) {
+	       
+		List<InstanceInfo> instanceInfoList = this.appConfig.getDiscoveryClient().getInstancesByVipAddress(virtualHostname, false);
+        
+		if (instanceInfoList == null || instanceInfoList.isEmpty()) {
+	            throw new RuntimeException("No matches for the virtual host name :" + virtualHostname);
+	    }
+		
+		// 根据zone过滤节点
+		List<InstanceInfo> newInstanceList = new  ArrayList<>();
+		
+		for( InstanceInfo info : instanceInfoList )
+		{			
+			if( StringUtils.isEmpty(info.getMetadata().get("zone")) )
+			{
+				newInstanceList.add(info);
+			}
+		}
+		
+		if (newInstanceList == null || newInstanceList.isEmpty()) {
+            throw new RuntimeException("No matches for the virtual host name :" + virtualHostname );
+		}
+        
+		// 负载均衡
+		Applications apps =  this.appConfig.getDiscoveryClient().getApplications() ;
+	
+        int index = (int) (apps.getNextIndex(virtualHostname.toUpperCase(Locale.ROOT),
+                false).incrementAndGet() % newInstanceList.size());
+        
+        return newInstanceList.get(index);
+    }
 	
 	private String proxyPath( String appName )
 	{

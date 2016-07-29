@@ -9,6 +9,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import com.plateno.proxy.FilterRule;
 import com.plateno.proxy.ProxApplicationConfig;
 
 import io.vertx.core.http.HttpClient;
@@ -20,6 +21,8 @@ import io.vertx.ext.web.RoutingContext;
 public  class FiltersProcesser implements InitializingBean {
 
 	private List<AbstractFilter> filters = new ArrayList<AbstractFilter>();
+	
+	private static final String DEFAULT_ZONE = "pro" ;
 	
 	@Autowired
 	private ProxApplicationConfig proxyConfig ;
@@ -56,5 +59,19 @@ public  class FiltersProcesser implements InitializingBean {
 		if( event.get("enableProxy") == null ) return true ;
 		return (boolean) event.get("enableProxy");
 	}
+	
+	public static void setZone( RoutingContext event , String zone )
+	{
+		event.put("zone", zone) ;
+	}
+	
+	public static String getZone( RoutingContext event)
+	{
+		Object zobj  = event.get("zone") ;
+		if( zobj == null ) return null ;
+		return event.get("zone") ;
+	}
+	
+	
 
 }
