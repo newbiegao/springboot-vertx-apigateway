@@ -23,6 +23,8 @@ import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.redis.RedisClient;
+import io.vertx.redis.RedisOptions;
 
 @Configuration
 @EnableConfigurationProperties({HttpClientOptionsConfig.class , VertxProxyConfig.class})
@@ -148,5 +150,18 @@ public class ProxApplicationConfig {
         }
         return this.vertx;
     }
+	
+	@Bean
+	public RedisClient RedisClientBean()
+	{
+		RedisOptions config = new RedisOptions() ;
+		
+		
+		
+		RedisClient redis = RedisClient.create(getVertxInstance(), config);
+		
+		return redis ;
+		
+	}
 		
 }

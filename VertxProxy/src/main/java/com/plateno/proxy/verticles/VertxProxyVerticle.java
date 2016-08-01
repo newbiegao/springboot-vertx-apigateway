@@ -28,6 +28,10 @@ import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
+import io.vertx.ext.web.handler.TimeoutHandler;
+import io.vertx.redis.RedisClient;
+
 
 /**
  * VERYX API GATEWAY代理
@@ -49,6 +53,8 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 	@Autowired
     private Vertx vertx;
 	
+	@Autowired
+	private RedisClient redis ;
 	
 	@PostConstruct
 	public void start() throws Exception {
@@ -66,7 +72,11 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 		HttpClient client = vertx.createHttpClient(hopt);
 
 		Router proxyRouter = Router.router(vertx);
-				
+			
+		// proxyRouter.route().handler(BodyHandler.create()) ;
+		
+		proxyRouter.route("/*").handler(TimeoutHandler.create(10000)) ;
+		
 		// 所有请求前置处理
 		proxyRouter.route("/*").handler( requestHandler -> {
 			
@@ -88,13 +98,15 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 			
 		}) ;
 
+		proxyRouter.route("/redis").handler(this::redisHander) ;
+		
 		// 错误处理
 		proxyRouter.exceptionHandler(exceptionHandler -> {
 
 			logger.error(" proxy inner error: " , exceptionHandler );
 
 		});
-
+		
 		HttpServerOptions options = new HttpServerOptions();
 		options.setTcpKeepAlive(true);
 		options.setReuseAddress(true);
@@ -260,6 +272,26 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 			requestHandler.next(); 
 		}
 
+	}
+	
+	public void redisHander( RoutingContext requestHandler  )
+	{
+	
+		this.redis.set("user", requestHandler.request().getParam("user") , rest ->{
+			
+			if( rest.succeeded() )
+			{
+				 // System.out.println("ok--------" + requestHandler.request().getParam("user") );
+				// logger.info("ok--------" + requestHandler.request().getParam("user"));
+				requestHandler.response().end( requestHandler.request().getParam("user") );
+			}
+			if( rest.failed() )
+			{
+				requestHandler.response().setStatusCode(500);
+				requestHandler.response().end(" redis error");
+			}
+				
+		}) ;
 	}
 	
 }
