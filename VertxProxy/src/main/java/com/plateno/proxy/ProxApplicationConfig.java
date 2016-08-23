@@ -2,6 +2,7 @@ package com.plateno.proxy;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -17,12 +18,16 @@ import org.springframework.util.StringUtils;
 import com.netflix.appinfo.ApplicationInfoManager;
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.EurekaClient;
+import com.plateno.apigateway.domain.StrategyConfig;
+import com.plateno.apigateway.domain.StrategyGroup;
+import com.plateno.apigateway.domain.StrategyMapping;
 import com.plateno.proxy.config.HttpClientOptionsConfig;
 import com.plateno.proxy.config.VertxProxyConfig;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.RoutingContext;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
 
@@ -111,6 +116,32 @@ public class ProxApplicationConfig {
 	}
 	
 	/**
+	 * 获取路由配置策略
+	 * @param event
+	 * @return
+	 */
+	public Map<String , StrategyConfig> getPathMappingStrategys( RoutingContext event )
+	{
+		Map<String,String> map = getRemoteConfig() ;
+		String mapping =  map.get(StrategyConfig.STRATEG_MAPPING) ;
+		
+		List<String> strategyIds = StrategyMapping.match(event.request().path() , mapping ) ;
+		
+		Map<String , StrategyConfig>  strategys  = new LinkedHashMap<>() ;
+		for( String id : strategyIds )
+		{
+			String stgName = StrategyConfig.STRATEG_GROUP_PREFIX + id ;
+			Map<String,StrategyConfig> stgList = StrategyGroup.getStrategyList(map.get(stgName))  ;
+			for( String stname : stgList.keySet())
+			{
+				strategys.put(stname , stgList.get(stname)) ;
+			}
+		}
+		
+		return strategys  ;
+	}
+	
+	/**
 	 * 获取路由配置信息
 	 * @return
 	 */
@@ -143,6 +174,7 @@ public class ProxApplicationConfig {
 	
 	@Bean
     public Vertx getVertxInstance() {
+		
         if (this.vertx==null) {
         	VertxOptions vopt = new VertxOptions() ;
         	vopt.setEventLoopPoolSize(40);

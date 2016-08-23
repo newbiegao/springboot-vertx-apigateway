@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.plateno</groupId>
 	<artifactId>VertxProxy</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.2-SNAPSHOT</version>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -77,6 +77,17 @@
 			<version>3.3.2</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.cyngn.vertx</groupId>
+			<artifactId>vertx-util</artifactId>
+			<version>0.6.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.plateno</groupId>
+			<artifactId>api-gateway-domain</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
 	</dependencies>
 
 	<build>

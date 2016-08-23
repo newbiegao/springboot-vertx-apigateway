@@ -10,8 +10,6 @@ import com.plateno.proxy.ProxApplicationConfig;
 import com.plateno.proxy.filters.AbstractFilter;
 
 import io.vertx.core.http.HttpClient;
-import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
 @Service

@@ -14,11 +14,12 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import com.cyngn.vertx.async.promise.Promise;
 import com.netflix.appinfo.InstanceInfo;
-import com.netflix.discovery.endpoint.EndpointUtils;
 import com.netflix.discovery.shared.Applications;
 import com.plateno.proxy.HttpUtilty;
 import com.plateno.proxy.ProxApplicationConfig;
+import com.plateno.proxy.StrategyProcesser;
 import com.plateno.proxy.filters.FiltersProcesser;
 
 import io.vertx.core.AbstractVerticle;
@@ -28,8 +29,6 @@ import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.handler.BodyHandler;
-import io.vertx.ext.web.handler.TimeoutHandler;
 import io.vertx.redis.RedisClient;
 
 
@@ -45,7 +44,10 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 	private static final Logger logger = LoggerFactory.getLogger(VertxProxyVerticle.class);
 	
 	@Autowired
-	public  FiltersProcesser filtersProcesser ;
+	private FiltersProcesser filtersProcesser ;
+	
+	@Autowired
+	private StrategyProcesser strategyProcesser ;
 	
 	@Autowired
 	private ProxApplicationConfig appConfig ;
@@ -75,14 +77,14 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 			
 		// proxyRouter.route().handler(BodyHandler.create()) ;
 		
-		proxyRouter.route("/*").handler(TimeoutHandler.create(10000)) ;
+		// proxyRouter.route("/*").handler(TimeoutHandler.create(10000)) ;
 		
 		// 所有请求前置处理
-		proxyRouter.route("/*").handler( requestHandler -> {
+		proxyRouter.route("/*").handler( strategyProcesser :: beginProcess);
 			
-			filterHander(requestHandler,client);
-			
-		} ) ;
+		// 策略检查
+		proxyRouter.route("/*").handler( strategyProcesser :: endProcess);
+		
 			
 		// 服务路由请求
 		proxyRouter.route(proxyPath(appConfig.getAppName())).handler( requestHandler -> {
@@ -93,7 +95,6 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 			String path = getRemoteServicePath(requestHandler);
 			
 			// 执行远程请求
-			//requestHttpClientHander(requestHandler , client , backServer.getPort() , backServer.getHostName() , path , getTimeOut(backServer,appConfig.getClientConfig().getConnectTimeout()) );
 			HttpUtilty.requestHttpClientHander(requestHandler , client , backServer.getPort() , backServer.getHostName() , path , getTimeOut(backServer,appConfig.getClientConfig().getConnectTimeout()) );
 			
 		}) ;
@@ -261,37 +262,55 @@ public class VertxProxyVerticle extends AbstractVerticle implements IVertx {
 		return "/" + appName + "/:serviceName/*" ;
 	}
 	
-
-	private void filterHander( RoutingContext requestHandler , HttpClient client )
-	{
-		// 代理前置处理
-		filtersProcesser.process(requestHandler , client );
-		
-		if(FiltersProcesser.canProxy(requestHandler) )
-		{
-			requestHandler.next(); 
-		}
-
-	}
-	
 	public void redisHander( RoutingContext requestHandler  )
 	{
-	
-		this.redis.set("user", requestHandler.request().getParam("user") , rest ->{
+		
+		Promise.newInstance(this.vertx).then((context, onResult) -> {
 			
-			if( rest.succeeded() )
-			{
-				 // System.out.println("ok--------" + requestHandler.request().getParam("user") );
-				// logger.info("ok--------" + requestHandler.request().getParam("user"));
-				requestHandler.response().end( requestHandler.request().getParam("user") );
-			}
-			if( rest.failed() )
-			{
-				requestHandler.response().setStatusCode(500);
-				requestHandler.response().end(" redis error");
-			}
+			this.redis.set("user", requestHandler.request().getParam("user") , rest ->{
 				
-		}) ;
+				if( rest.succeeded() )
+				{
+					 // System.out.println("ok--------" + requestHandler.request().getParam("user") );
+					// logger.info("ok--------" + requestHandler.request().getParam("user"));
+					// requestHandler.response().end( requestHandler.request().getParam("user") );
+					context.put("msg", requestHandler.request().getParam("user") ) ;
+				}
+				if( rest.failed() )
+				{
+					context.put("msg",rest.cause().toString());
+//					requestHandler.response().setStatusCode(500);
+//					requestHandler.response().end(" redis error");
+				}
+				onResult.accept(true);
+					
+			}) ;
+			
+		})
+		.then( ( context , onResult ) -> {
+			
+			this.redis.get("user", rest ->{
+				
+				if( rest.succeeded() )
+				{
+					context.put("msg", rest.result() + "-ok") ;
+					onResult.accept(true);
+				}
+				if( rest.failed() )
+				{
+					context.put("msg", rest.cause().toString()) ;
+					onResult.accept(true);
+				}
+				
+			}) ;
+			
+		})
+		.then( (context, onResult) -> {
+			
+			requestHandler.response().end(context.getString("msg") );
+			
+		}).eval() ;
+		
 	}
 	
 }

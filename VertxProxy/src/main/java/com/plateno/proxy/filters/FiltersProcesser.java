@@ -2,19 +2,18 @@ package com.plateno.proxy.filters;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
-import com.plateno.proxy.FilterRule;
+import com.plateno.apigateway.domain.StrategyConfig;
+import com.plateno.apigateway.domain.StrategyMapping;
 import com.plateno.proxy.ProxApplicationConfig;
 
 import io.vertx.core.http.HttpClient;
-import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
 @Service
@@ -32,7 +31,7 @@ public  class FiltersProcesser implements InitializingBean {
 	
 	public void process(RoutingContext event ,  HttpClient client )
 	{
-		
+		// 策略检查
 		for( AbstractFilter filter : filters )
 		{
 			filter.handle(event , client);
